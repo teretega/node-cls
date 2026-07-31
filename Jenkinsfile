@@ -1,48 +1,39 @@
-// pipeline {
-//   agent any
-    
-//   tools {nodejs "node"}
-    
-//   stages {
-        
-//     stage('Git') {
-//       steps {
-//         git branch: 'main', credentialsId: 'ssh-git', url: 'https://github.com/tolaoguntunde/node-cls'
-//       }
-//     }
-     
-//     stage('Build') {
-//       steps {
-//         sh 'npm install'
-//          //sh '<<Build Command>>'
-//       }
-//     }  
-    
-//   }
-// }
 pipeline {
-  agent any
-  tools { nodejs "node" }
-  stages {
-    stage('Git') {
-      steps {
-        sh 'git clone https://github.com/tolaoguntunde/node-cls.git .'
-        sh 'pwd'
-      }
-    }
-    stage('build') {
-        steps {
-            sh 'docker build -t tolaoguntunde/node-app .'
-            sh 'docker push docker.io/tolaoguntunde/node-app:latest'
-            sh 'docker image rm tolaoguntunde/node-app'
-            
+    agent any
+
+    stages {
+        stage('Build') {
+            steps {
+                sh 'docker build -t otere/node-cls:latest .'
+            }
+        }
+
+        stage('Push') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-credentials',
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
+                    )
+                ]) {
+                    sh '''
+                        echo "$DOCKER_PASSWORD" | docker login \
+                        -u "$DOCKER_USERNAME" \
+                        --password-stdin
+
+                        docker push otere/node-cls:latest
+                    '''
+                }
+            }
+        }
+
+        stage('Run') {
+            steps {
+                sh 'docker stop nodeapp || true'
+                sh 'docker rm nodeapp || true'
+                sh 'docker run -d --name nodeapp -p 3001:3000 otere/node-cls:latest'
+            }
         }
     }
-    stage('run') {
-        steps {
-            sh'docker run -d --name nodeapp -p 3001:3000 tolaoguntunde/node-app'   
-        }
-    }
-  }
-  
 }
